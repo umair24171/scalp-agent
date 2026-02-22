@@ -1,0 +1,17 @@
+{
+  "name": "scalp-agent",
+  "version": "1.0.0",
+  "description": "XAU/USD SELL-only pullback scalping agent | 51.2% WR | PF 1.89",
+  "type": "module",
+  "main": "src/scalp_index.js",
+  "scripts": {
+    "start": "node src/scalp_index.js",
+    "dev": "DEBUG_MODE=true node src/scalp_index.js"
+  },
+  "dependencies": {
+    "technicalindicators": "^3.1.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

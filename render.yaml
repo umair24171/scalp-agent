@@ -1,0 +1,23 @@
+services:
+  # ── SCALP AGENT: Runs as cron job 11:55-13:10 UTC daily ──
+  - type: cron
+    name: scalp-agent
+    runtime: node
+    schedule: "55 11 * * 1-5"   # Mon-Fri at 11:55 UTC (5 min before session)
+    buildCommand: npm install
+    startCommand: node src/scalp_index.js
+    envVars:
+      - key: TWELVEDATA_API_KEY
+        sync: false
+      - key: DISCORD_WEBHOOK_URL
+        sync: false
+      - key: SCALP_WATCHLIST
+        value: XAU/USD
+      - key: MT5_AUTO_TRADE
+        value: "false"          # set to true when MT5 EA is ready
+      - key: MT5_SIGNALS_DIR
+        value: /tmp/mt5_scalp_signals
+      - key: MT5_RISK_PERCENT
+        value: "1"
+      - key: DEBUG_MODE
+        value: "false"
