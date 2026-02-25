@@ -101,13 +101,29 @@ async function run() {
     await notify(msg);
   });
 
+  // ── Auto-exit at 13:10 UTC (session ends 13:00) ──
+  const now = new Date();
+  const exitAt = new Date();
+  exitAt.setUTCHours(13, 10, 0, 0);
+  if (exitAt <= now) exitAt.setUTCDate(exitAt.getUTCDate() + 1);
+  const msUntilExit = exitAt - now;
+  setTimeout(async () => {
+    const s = engine.getStats();
+    const msg = `📊 NY Scalp Session Done | ${s.wins}W ${s.losses}L | WR: ${s.winRate}% | PF: ${s.profitFactor} | ${s.totalR.toFixed(1)}R total`;
+    console.log('\n' + msg);
+    await notify(msg);
+    console.log('👋 Session ended, exiting cleanly.');
+    process.exit(0);
+  }, msUntilExit);
+  console.log(`⏱ Auto-exit scheduled at 13:10 UTC (in ${Math.round(msUntilExit/60000)} min)\n`);
+
   // ── Poll every 60 seconds (1min candle cadence) ──
   console.log('⏱ Polling every 60 seconds...\n');
   setInterval(async () => {
     const hour = new Date().getUTCHours();
-    const isActive = hour >= 12 && hour < 14; // fetch slightly wider than signal window
+    const isActive = hour >= 12 && hour < 14;
 
-    if (!isActive) return; // don't waste API credits outside session
+    if (!isActive) return;
 
     for (const symbol of SYMBOLS) {
       try {
