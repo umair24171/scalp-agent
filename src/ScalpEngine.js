@@ -22,6 +22,7 @@ export class ScalpEngine {
   constructor() {
     this.candles1m    = {};   // { symbol: [...] }
     this.candles5m    = {};   // { symbol: [...] }
+    this.candles1h    = {};   // { symbol: [...] } ← 1h macro filter
     this.openTrade    = {};   // { symbol: tradeObj | null }
     this.lastSignalTs = {};   // { symbol: timestamp }
     this.config       = SCALP_CONFIG;
@@ -46,6 +47,35 @@ export class ScalpEngine {
   load5mCandles(symbol, candles) {
     this.candles5m[symbol] = candles.slice(-80);
     console.log(`   📊 ScalpEngine: Loaded ${candles.length} × 5min candles for ${symbol}`);
+  }
+
+  // ── Load 1h candles for macro filter ──
+  load1hCandles(symbol, candles) {
+    this.candles1h[symbol] = candles.slice(-100);
+    console.log(`   📊 ScalpEngine: Loaded ${candles.length} × 1h candles for ${symbol} (macro filter)`);
+  }
+
+  // ── 1H MACRO TREND: hard block counter-macro trades ──
+  get1hMacro(symbol) {
+    const c1h = this.candles1h[symbol];
+    if (!c1h || c1h.length < 55) return 'NEUTRAL';
+    const closes = c1h.map(c => c.close || c.c);
+    const highs  = c1h.map(c => c.high  || c.h);
+    const lows   = c1h.map(c => c.low   || c.l);
+    try {
+      const ema21 = EMA.calculate({ values: closes, period: 21 });
+      const ema50 = EMA.calculate({ values: closes, period: 50 });
+      const adx   = ADX.calculate({ high: highs, low: lows, close: closes, period: 14 });
+      if (!ema21.length || !ema50.length || !adx.length) return 'NEUTRAL';
+      const e21    = ema21[ema21.length - 1];
+      const e50    = ema50[ema50.length - 1];
+      const price  = closes[closes.length - 1];
+      const adxVal = adx[adx.length - 1].adx;
+      if (adxVal < 20) return 'NEUTRAL';
+      if (e21 > e50 && price > e21) return 'BULLISH';
+      if (e21 < e50 && price < e21) return 'BEARISH';
+      return 'NEUTRAL';
+    } catch { return 'NEUTRAL'; }
   }
 
   // ── Push new 1min candle (called every minute) ──
@@ -293,19 +323,25 @@ export class ScalpEngine {
       };
     }
 
-    // 4. 5min trend
+    // 4. 1h MACRO FILTER: block SELL if macro is BULLISH
+    const macro = this.get1hMacro(symbol);
+    if (macro === 'BULLISH') {
+      return { action: 'HOLD', reason: `1h macro BULLISH — SELL blocked (trading with trend only)` };
+    }
+
+    // 5. 5min trend
     const trend = this.get5mTrend(symbol);
     if (trend !== 'BEARISH') {
       return { action: 'HOLD', reason: `5min trend: ${trend} (need BEARISH)` };
     }
 
-    // 5. Get 1min signal
+    // 6. Get 1min signal
     const sig = this.getSellSignal(symbol);
     if (!sig) {
       return { action: 'HOLD', reason: 'No valid pullback setup on 1min' };
     }
 
-    // 6. Fire signal — store as open trade
+    // 7. Fire signal — store as open trade
     const trade = {
       symbol,
       action:      'SELL',

@@ -58,6 +58,21 @@ async function fetch5m(symbol) {
   }));
 }
 
+// ── Fetch 1h candles for macro filter ──
+async function fetch1h(symbol) {
+  const url = `https://api.twelvedata.com/time_series?symbol=${encodeURIComponent(symbol)}&interval=1h&outputsize=100&apikey=${API_KEY}`;
+  const res  = await fetch(url);
+  const data = await res.json();
+  if (!data.values) return null;
+  return data.values.reverse().map(v => ({
+    ts: new Date(v.datetime + 'Z').getTime(),
+    open: parseFloat(v.open), high: parseFloat(v.high),
+    low:  parseFloat(v.low),  close: parseFloat(v.close),
+    o: parseFloat(v.open), h: parseFloat(v.high),
+    l: parseFloat(v.low),  c: parseFloat(v.close),
+  }));
+}
+
 // ── Format signal Discord message ──
 function formatSignalMsg(symbol, result, price) {
   const s = result.signal;
@@ -86,8 +101,10 @@ async function run() {
   for (const symbol of SYMBOLS) {
     const c1m = await fetchLatest1m(symbol);
     const c5m = await fetch5m(symbol);
+    const c1h = await fetch1h(symbol);
     if (c1m) engine.load1mCandles(symbol, c1m);
     if (c5m) engine.load5mCandles(symbol, c5m);
+    if (c1h) engine.load1hCandles(symbol, c1h);
     buffer5m[symbol] = null;
     await new Promise(r => setTimeout(r, 1200)); // API rate limit
   }
