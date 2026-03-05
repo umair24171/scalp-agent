@@ -127,7 +127,9 @@ export class ScalpEngine {
       const adxVal = adx[adx.length - 1].adx;
 
       // STRICT bearish: full stack + ADX ≥ 25
-      if (e9 < e21 && e21 < e50 && p < e9 && adxVal >= 25) return 'BEARISH';
+      // 3/4 conditions: price < e9 removed — pullbacks temporarily push price above EMA9
+      // entry signal already validates price position (getSellSignal: price >= e8 → null)
+      if (e9 < e21 && e21 < e50 && adxVal >= 25) return 'BEARISH';
       return 'NEUTRAL';
     } catch { return 'NEUTRAL'; }
   }
